@@ -1,2 +1,1 @@
-# EV{op}
-Optimization using Evolutionary Operators
+# Optimization using Evolutionary Operators
