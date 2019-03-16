@@ -1,0 +1,382 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[american]{babel}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{listings-golang}
+
+\author{Kuba Podgórski}
+\title{{\bf Binary tree optimization using evolutionary operators}}
+
+\newcommand{\sumin}[2]{\sum\limits_{#1}^{#2}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The research on binary trees and searching information to try answer the question on what is the best binary search tree. In other words, the tree where the \textit{search cost} is minimal.
+In this case, the \textit{search cost} refers to the number of needed comparisons, to find a certain element.\\
+Deterministic algorithms like Knuth's dynamic programming algorithm is capable of constructing the statically optimal tree in $O(n^2)$ time, so it becomes impractical when the number of elements in the tree is very large. For the last couple of years new ideas related to genetics and evolution theory have gained in popularity. Genetic algorithms (GA) are based on natural selection mechanisms together with genetic operators make searching for results close to optimal.\\
+Our work is kind of an experiment, checking for what cases optimization binary trees by genetic and evolutionary operators makes sense.
+\end{abstract}
+
+\section{Definitions}
+First, we need to introduce basic terms related to genetic and evolutionary operators.
+\begin{description}
+\item[Chromosome] In \textbf{GA}, a chromosome is often represented as a binary string (encoded by the alphabet of $\{0, 1\}$).
+\item[Crossover] Genetic operator used to exchange genetic information between parents (randomly selected from a population), to generate a new offspring.
+\item[Mutation] Genetic operator alters one or more gene values. A mutation occurs with very low probability (0.01). The purpose of mutation is to prevent the population of chromosomes from becoming too similar to each other.
+\item[Selection] The stage in which genomes are chosen from the population for the next operation. Selection is based on pre evaluated fitness function for each genome. It can be implemented in many different ways. The most common are fitness proportionate selection or roulette-wheel selection (when we repeat the procedure until there are enough selected individuals), stochastic selection, tournament selection (when we select the best individual of a randomly chosen subset).
+\end{description}
+
+\subsection{Termination condition}
+In \textbf{GA}, the optimization process is repeated until the termination condition has been reached. For instance, a process can be terminated if the solution found satisfies the predefined value, e.g.:
+\[
+    f({X}(t)) \geq f_s
+\]
+where:
+ $f_s$ is a predefined value,
+ ${X}(t)$ is the best solution found in time $t$. This kind of condition is hard to apply, mainly because it is hard to define $f_s$ value.
+\\
+Another condition is based on the observation of how fast the evaluation improves. A process is terminated if in the last $n$ generations the evaluation has not improved more than predefined  $\epsilon$:
+\[
+     |f({X}(t - n)) - f({X}(t))| \leq \epsilon
+\]
+
+\subsection{Difference between genetic and evolutionary algorithms}
+In classical \textbf{GA} it is common to assume that a chromosome is represented as a \textit{fixed length} sequence of bits. Moreover, only two operators are allowed: \textit{mutation} and \textit{crossover}. Additionally, classical genetic operators only modify the sequence of bits and do not consider any properties of the encoded data structure.\\
+Another difference between \textbf{GA} and \textbf{EA} is related to the selection process.
+\textbf{GA} selects as many genomes as the size of the population. Genomes can be duplicated. In other words, \textit{strong} genomes can be selected again to the new population however the weakest genome can also be selected.
+In evolutionary strategies selection is deterministic (compared to random selection which takes place in genetic algorithms). Only the best genomes (no duplication) are selected.\\
+Normalization also works differently. In evolutionary strategies, the selection reduces the \textit{middle-stage} population to the fixed number of genomes. In genetic algorithms, the \textit{middle-stage} population will be selected first, then the genetic operators will be applied.
+
+\section{Encoding binary trees to sequences}
+Let $T$ be a \textit{complete} binary tree. For each \textit{internal node} we assign label $1$ and for each \textit{leaf} a label $0$.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{preorder.png}
+\caption{preorder traversal of complete binary tree $T$}
+\label{fig:preorder}
+\end{figure}
+
+If we traverse the tree $T$ in \textit{preorder} and read labels for every node, then we will get $x-sequence$ of $T$ with $n$ ones and $n+1$ zeros.\\
+Let $\left\{x\right\}_{T}^{2n}$ be $x-sequence$ built from tree $T$ with $n$  \textit{internal nodes}. And $\left\{x_i\right\}_{T}^{2n}$  is $i-th$ element of $x-sequence$.
+A $y-sequence$ is built from $x-sequence$ as a sequence of indexes with label zero ($\left\{y_i\right\}_{T}^{n}$ defines $i-th$ leaf in the tree $T$).
+Similarly to $y-sequence$ a $z-sequence$ is built as a sequence of indexes with label one ($\left\{z_i\right\}_{T}^{n}$ defines $i-th$ internal node in the tree $T$).
+For instance, for the tree $T$ (on Figure \ref{fig:preorder}) we can build following sequences:
+
+\begin{tabular}{l}
+    $\left\{x\right\}_{T}^{10} = $ 1 1 1 0 0 0 1 0 1 0 0\\
+    \\
+    $\left\{y\right\}_{T}^{5} = $ 3 4 5 7 9 10\\
+    \\
+    $\left\{z\right\}_{T}^{5} = $ 0 1 2 6 8\\
+\end{tabular}
+
+\lstinputlisting[language=golang, firstline=339, lastline=344, basicstyle=\tiny, frame=single, caption=Convert a binary tree to genome ($x-sequence$)]{bintree.go}
+\lstinputlisting[language=golang, firstline=480, lastline=508, basicstyle=\tiny, frame=single]{bintree.go}
+
+
+\section{Binary tree optimization}
+Let $p_i$ ($\sum{p_i} = 1$) be a \textit{visit probability} of \textit{i-th} node in a binary tree. Our optimization task is to reorganize a tree in such a way that a sum of paths to each node is minimal. Every node keeps an extra weight $w_i$, which stands for frequency of visiting the \textit{i-th} node.
+So, our fit function, which will be minimized may look like:
+\begin{equation}
+    eval_{T}(n) = \sumin{i=0}{n-1} w_i (h_i + 1)\quad ,
+\end{equation}
+where $n$ is a number of nodes in a tree, $w_i$ is a weight of \textit{i-th} node, and $h_i$ is a height of \textit{i-th} node in a tree.
+
+For example, we have three different binary trees with the following weights:
+$w_1 = 1$, $w_2 = 3$, $w_3 = 5$.
+Let's assign weights to nodes and evaluate trees.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.65]{bin3.png}
+\caption{binary trees with three nodes}
+\label{fig:bin3}
+\end{figure}
+
+\begin{equation}
+    eval_{A}(3) = 5 * (0 + 1) + 3 * (1 + 1) + 1 * (2 + 1) = 14
+\end{equation}
+\begin{equation}
+    eval_{B}(3) = 5 * (0 + 1) + 1 * (1 + 1) + 3 * (2 + 1) = 16
+\end{equation}
+\begin{equation}
+    eval_{C}(3) = 3 * (0 + 1) + 1 * (1 + 1) + 5 * (1 + 1) = 15
+\end{equation}
+In our example, the tree $A$ was chosen as optimal, because the minimum value was returned by the fit function $eval^A$.
+
+
+The most common optimal binary trees are used for dictionaries or lexical analyzers. In most cases, these are \textit{binary search trees (BST)}.
+We also know that a dictionary does not contain all words, so we should also consider \textit{missed lookups}. The most important is to minimize the time to say the \textit{key} does not exist in a tree.
+Let's adjust our previous fit function by considering not only hits (successes) but also failures (misses).
+
+\[
+eval_{T}( n ) = \underbrace{\sumin{i=0}{n-1}w_i (h_i + 1)}_{\emph{hits}} + \underbrace{\sumin{j=0}{n}w'_j (h'_j + 1)}_{\emph{misses}}\quad
+\]
+where $w_i$ is a weight - how many times argument $x$ was equal i-th key ($a_i$),
+$w'_j$ - how many times $x$ was between $a_{j-1}$ and $a_{j}$. Moreover, $w'_0$ stands for number of times $x$ was less than $a_0$, $w'_n$ how many times $x$ was greater than $a_{n-1}$,
+$h_i$ is a height of i-th internal node and $h'_j$ is a height of j-th external node (leaf).
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.65]{bst.png}
+\caption{A binary search tree with visit frequencies}
+\label{fig:bst}
+\end{figure}
+
+\lstinputlisting[language=golang, firstline=148, lastline=172, basicstyle=\tiny, frame=single, caption=Evaluates a given genome]{bintree.go}
+
+\subsection{Encoding and representation}
+We chose $x-sequence$ method to encode binary trees because it uses the smallest alphabet.
+Chromosome indexes (represented as $x-sequence$) start with $0$, so the example binary tree on figure \ref{fig:bst} is represented by the following chromosome: $(1_0\quad 1_1\quad  0_2\quad 1_3\quad 0_4\quad 0_5\quad 1_6\quad 1_7\quad 0_8\quad 0_9\quad 0_{10})$.
+
+Let all encoded binary trees be \textit{complete binary trees}. In other words, for each node which does not have two sons (leaf or internal node with just one son), we will add \textit{empty nodes} (with no information). We will work with a complete binary tree with $2N + 1$ nodes. After that, we will encode the complete tree to the chromosome with length $2N + 1$.
+Genes marked as $1$ are internal nodes (with information), genes marked as $0$ are leaves (with no information).
+Every gene contains \textit{weight} (visit frequency) and \textit{is empty} (boolean information).
+It is easy to notice that all chromosomes generated from non-empty binary trees match a pattern
+$P_{T} = (1 \underbrace{\star \star \star \ldots \star}_{2N-2} 0 0)$, where $N > 0$ is a number of non-empty nodes.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{convert.png}
+\caption{Conversion into a complete binary tree and encoded to $x-sequence$}
+\label{fig:convert}
+\end{figure}
+
+All optimal binary trees have one very important property - all sub-trees are also optimal. This property lets us compose multiple optimal trees into one big optimal tree.
+The problem of how to find a sub-tree in a chromosome can be solved by finding the first gene from which the number of zeros is greater  than the number of ones (counting from the next first non-root node, e.g.:
+
+\clearpage
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.75]{subtrees.png}
+
+$(1\quad\underbrace{0}_{L}\quad\underbrace{1\quad\underbrace{1\quad 0\quad 0}_{P,L}\quad 0}_{P})$
+\label{fig:subtrees}
+\end{figure}
+
+\subsection{Optimization algorithm}
+
+Our optimization algorithm is a simple iteration with \textit{(1+1) selection strategy}. In every iteration, the algorithm selects the most optimal chromosome and executes one of five operators (here we use the \textit{roulette selection}): \textit{inversion}, \textit{swap}, \textit{crossover}, \textit{splay left}, \textit{splay right}. After that we apply validation heuristics to check if the new chromosome is a correctly encoded binary tree. If the test passes, the algorithm will evaluate a fitness function and check if we get a \textit{new minimum}.
+
+Let's define evolutionary operators used by our algorithm. The mutation operator was excluded because it changes a random gene. Because we assumed that genes with label 1 are \textit{non-empty} genes (with information), thus a mutation would remove or insert a new node.
+
+\clearpage
+\lstinputlisting[language=golang, firstline=10, lastline=25, basicstyle=\tiny, frame=single, caption=Optimization algorithm]{bintree.go}
+\lstinputlisting[language=golang, firstline=94, lastline=122, basicstyle=\tiny, frame=single]{bintree.go}
+
+\subsubsection{Inversion operator}
+
+The inversion operator changes an ordering of genes in the chromosome, and it works as follows:
+\begin{itemize}
+\item We generate two \textit{uniformly-distributed} numbers $k_1, k_2$ from a range $[0, n)$, where $n$ is a length of the chromosome and $k_1 \leq k_2$.
+\item A new chromosome $x'$, generated from $x$ can be defined as:
+\[
+    x'_i = \left\{
+   \begin{array}{lr}
+      x_{k_2 - i + k_1} & \textrm{ for } i\in\left[k_1, k_2\right]\\
+      x_i &\textrm{otherwise}
+   \end{array}
+   \right.
+\]
+\end{itemize}
+
+{\bf Example:} for $k_1 = 2, k_2 = 6$ and
+\[
+x = (1_0, 0_1, {\bf 1_2, 1_3, 0_4, 0_5, 1_6}, 1_7, 0_8, 0_9, 0_{10})
+\]
+as a result of inversion, we will get
+\[
+x' = (1_0, 0_1, {\bf 1_{2(6)}, 0_{3(5)}, 0_{4(4)}, 1_{5(3)}, 1_{6(2)}}, 1_7, 0_8, 0_9, 0_{10})
+\]
+
+\lstinputlisting[language=golang, firstline=175, lastline=191, basicstyle=\tiny, frame=single, caption=Inversion operator]{bintree.go}
+
+\subsubsection{Swap operator}
+
+The swap operator looks like a simplified version of inversion because of it just swaps information between two random genes. The main difference is in the distribution algorithm which picks random indexes. For inversion we used \textit{uniformly-distributed} numbers. Here indexes are pseudo-random numbers with \textit{normal distribution}.
+A swap operation is \textit{the lowest cost operation}, because it works in constant time $O(1)$, however, it can destabilize the whole structure due to modifications of single nodes (instead of entire blocks). We can interpret a swap operation as an exchange of two nodes in a binary tree.
+
+\lstinputlisting[language=golang, firstline=194, lastline=203, basicstyle=\tiny, frame=single, caption=Swap operator]{bintree.go}
+
+\subsubsection{Crossover operator}
+
+The crossover operator does a kind of reflection on a chromosome, and it works as follows:
+\begin{itemize}
+\item Generate a random \textit{reference point} $k$, from a range $[0, n-3)$ with \textit{uniform distribution}, where $n$ is a length of the chromosome.
+\item Reflect the chromosome over the $k=5$ point, without last two genes.
+\end{itemize}
+
+\[
+    {\bf1_a\quad 0\quad 1_b\quad 1_c\quad 0\quad 0}\quad|_{k=5}\quad {\bf1_d\quad 1_e\quad 0}\quad 0\quad 0
+\]
+
+\[
+    {\bf1_d\quad 1_e\quad 0} \quad |_k \quad {\bf 1_a\quad0\quad 1_b\quad 1_c\quad 0\quad 0}\quad 0\quad 0
+\]
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.5]{crossover.png}
+\caption{Crossover binary tree}
+\label{fig:crossover}
+\end{figure}
+
+\lstinputlisting[language=golang, firstline=206, lastline=219, basicstyle=\tiny, frame=single, caption=Crossover operator]{bintree.go}
+
+\subsubsection{Splay Left operator}
+
+The splay left operator simulates a single \textit{left rotation} of a binary tree. Splay operations are very common for self-adjusting binary search trees. Single left rotation transforms the tree $T$ into binary tree $T'$ as follows:
+\begin{itemize}
+\item The node $x$ replaces the node $y$ (where $y$ is a parent for $x$)
+\item The node $y$ becomes a left child of $x$ and left sub-tree of node $x$ becomes a right sub-tree of node $y$ (by keeping all properties of binary search tree).
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{splayleft.png}
+\caption{Single splay left operation}
+\label{fig:splayleft}
+\end{figure}
+
+For chromosome representation we will get the following transformation:
+\[
+    T = (1_y \quad 0 \quad {\bf 1_x} \quad 1_z \quad 0 \quad 0 \quad 0)
+\]
+\[
+    T' = ({\bf 1_x} \quad 1_y \quad 0 \quad 1_z \quad 0 \quad 0 \quad 0)
+\]
+
+It is easy to notice that the left rotation for $x-sequence$ is just a move of the root of right sub-tree $T$ to the beginning. Because our chromosomes are $x-sequences$ then the rest (tail) of our sequence will keep the structure of a binary tree.
+
+An algorithm to find a node which will be moved works as follows:
+\begin{itemize}
+\item Start from index $1$ and find the index from which the number of empty nodes is greater than the number of non-empty nodes.
+\item If the index was found, then check if the next node is a non empty node. If yes then we found a root of sub-tree, and we move it to the beginning, otherwise the \textit{splay left} is not doable.
+\end{itemize}
+
+In our example, the algorithm will stop after the first step, because of the node with index $1$ is an empty node. And the next one is $x$ which will be moved to the beginning. In the end, we get chromosome $T'$.
+
+\lstinputlisting[language=golang, firstline=221, lastline=247, basicstyle=\tiny, frame=single, caption=Splay Left operator]{bintree.go}
+
+\subsubsection{Splay Right operator}
+
+The operator \textit{splay right} is analogous to \textit{splay left} operator. The only difference is a single rotation which for \textit{splay right} goes right.
+Single right rotation transforms the tree $T$ into binary tree $T'$ as follows:
+\begin{itemize}
+\item The node $y$ replaces the node $x$ (where $y$ is a left child of $x$).
+\item The node $x$ becomes a right child of $y$ and right sub-tree of node $y$ becomes a left sub-tree of node $x$ (by keeping all properties of binary search tree).
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{splayright.png}
+\caption{Single splay right operation}
+\label{fig:splayright}
+\end{figure}
+
+For chromosome representation we will get the following transformation:
+\[
+    T = (1_x \quad 1_y \quad 0 \quad 1_z \quad 0 \quad 0 \quad 1_w \quad 0 \quad 0)
+\]
+\[
+    T' = (1_y \quad 0 \quad 1_x \quad 1_z \quad 0 \quad 0 \quad 1_w \quad 0 \quad 0)
+\]
+
+The algorithm for \textit{splay right} slightly differs from \textit{splay left} version.
+The main difference is instead of moving just one element we move entire sub-sequence.
+In other words, we find boundary nodes in sub-sequence and move the whole block to the beginning of the chromosome.
+
+\begin{itemize}
+\item Start from index 1 as a root of left sub-tree.
+\item If a gene with index 1 is an empty node, it means the left sub-tree is empty, so we cannot make a right rotation. Otherwise, we found the left boundary.
+\item Iterate through the rest of nodes (from index 2) and count number of empty and non-empty nodes.
+If the number of empty nodes is greater than number of nodes with information, then we found the right boundary.
+\item Move the found sub-sequence to the beginning of the chromosome.
+\end{itemize}
+
+In our example, we start from the chromosome:
+\[
+    T = (1_x \quad {\bf 1_y\quad 0} \quad 1_z \quad 0 \quad 0 \quad 1_w \quad 0 \quad 0)
+\]
+The node $y$ is a root of left sub-tree and the left boundary of our sub-sequence. Next node is an empty node, so from the index $2$, a number of empty nodes is greater than number of nodes with information. So index $2$ is our right boundary. After that, we move our sub-sequence $chromosome[1, 2]$ to the beginning. As a result, we get the chromosome:
+\[
+    T' = ({\bf 1_y\quad 0} \quad 1_x \quad  1_z \quad 0 \quad 0 \quad 1_w \quad 0 \quad 0)
+\]
+
+
+\clearpage
+\lstinputlisting[language=golang, firstline=221, lastline=247, basicstyle=\tiny, frame=single, caption=Splay Right operator]{bintree.go}
+
+\section{Benchmarking}
+We tested our optimization algorithms against three types of \textit{binary search trees}. It is worth to notice here that our \textit{feasibility} function tested our chromosomes against two constraints. The first one checked if encoded chromosome is a binary tree. The second constraint assumed that chromosome is already a valid binary tree and checked if chromosomes is a correct binary search tree.
+
+\begin{description}
+\item[List BST] is a binary search tree where all internal nodes are linked like in a list. Weights in all nodes were generated randomly with uniform distribution.
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{listbst.png}
+\caption{Randomly generated \textit{List BST} with 5 internal nodes ($k1..k5$) in format (key/weight)}
+\label{fig:listbst}
+\end{figure}
+
+
+\item[Non optimal BST] is similar to \textbf{List BST}, but additionally the highest weights are at the bottom of a tree.
+\item[Balanced BST] is a balanced binary search tree. Weights in all nodes were generated randomly with uniform distribution.
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.55]{balancedbst.png}
+\caption{Randomly generated \textit{Balanced BST} with 5 internal nodes ($k1..k5$) in format (key/weight)}
+\label{fig:balancedbst}
+\end{figure}
+\end{description}
+
+Every tested tree had $1000$ \textit{internal nodes} (nodes with information - a key). Rest of $1001$ nodes (leaves) are either empty nodes $(0)$ or \textit{miss} nodes (no key, just weight).
+For test purpose, all evolutionary operators have the same, equal \textit{selection probability} ($0.2$).
+
+We compared our results with the deterministic algorithm (based on \textit{Knuth algorithm}) with time complexity $O(n^3)$ and memory $O(n^2)$. For $n=1000$ our algorithm gave optimal results in over one second.
+An evolutionary optimization time and memory complexity are linear. But it does not give us optimal results.
+
+\clearpage
+\subsubsection{Results}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{|l|l|l|l|} 
+\cline{2-4}
+\multicolumn{1}{l|}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
+\hline
+List BST              & 248957428 & 123205851 (201 ms) & 4204240 (1.04 s)\\ 
+\hline
+Non optimal BST       & 335374031 & 99164607 (502 ms) & 4405410 (1.04 s)\\                                                                                                                                                                            
+\hline
+Balanced BST          &  4519495 & 4519481 (200 ms) & 4258543 (1.09 s)\\
+\hline
+\end{tabular}
+\end{table}
+
+
+For already balanced BST we did not notice big improvements, but for \textit{pathological trees} (\textit{List BST} and \textit{Non optimal BST}) we can quickly get two or three times better evaluation than the original value.
+
+Conclusion - if we want to get results quickly with very low memory footprint and we do not need super optimal values, then evolutionary operators can be a good choice. Especially for a large number of nodes ($n > 1000$) where deterministic algorithms may work for minutes and most likely our binary trees are not balanced. 
+For instance for $n=2000$ the deterministic algorithm ran for \textit{19 seconds}.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{|l|l|l|l|} 
+\cline{2-4}
+\multicolumn{1}{l|}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
+\hline
+List BST              & 2070975464 & 1023575224 (925 ms) & 19418243 (16 s)\\ 
+\hline
+Non optimal BST       & 2666666000 & 782461510 (1 s) & 19431435 (19 s)\\                                                                                                                                                                            
+\hline
+Balanced BST          &  19910294 & 19910270 (985 ms) & 18848413 (19 s)\\
+\hline
+\end{tabular}
+\end{table}
+\end{document}
