@@ -1,10 +1,12 @@
 \documentclass[12pt]{article}
+
 \usepackage[utf8]{inputenc}
-\usepackage[american]{babel}
+\usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{listings}
 \usepackage{listings-golang}
+\usepackage[american]{babel}
 
 \author{Kuba Podgórski}
 \title{{\bf Binary tree optimization using evolutionary operators}}
@@ -313,7 +315,7 @@ The node $y$ is a root of left sub-tree and the left boundary of our sub-sequenc
 \lstinputlisting[language=golang, firstline=221, lastline=247, basicstyle=\tiny, frame=single, caption=Splay Right operator]{bintree.go}
 
 \section{Benchmarking}
-We tested our optimization algorithms against three types of \textit{binary search trees}. It is worth to notice here that our \textit{feasibility} function tested our chromosomes against two constraints. The first one checked if encoded chromosome is a binary tree. The second constraint assumed that chromosome is already a valid binary tree and checked if chromosomes is a correct binary search tree.
+We tested our optimization algorithms against three types of \textit{binary search trees}. It is worth noting here that our \textit{feasibility} function tested our chromosomes against two constraints. The first one checked if an encoded chromosome is a binary tree. The second constraint assumes that the chromosome is already a valid binary tree and checks if the chromosome is a correct binary search tree.
 
 \begin{description}
 \item[List BST] is a binary search tree where all internal nodes are linked like in a list. Weights in all nodes were generated randomly with uniform distribution.
@@ -335,10 +337,10 @@ We tested our optimization algorithms against three types of \textit{binary sear
 \end{figure}
 \end{description}
 
-Every tested tree had $1000$ \textit{internal nodes} (nodes with information - a key). Rest of $1001$ nodes (leaves) are either empty nodes $(0)$ or \textit{miss} nodes (no key, just weight).
-For test purpose, all evolutionary operators have the same, equal \textit{selection probability} ($0.2$).
+Every tested tree had $1000$ \textit{internal nodes} (nodes with information - a key). Rest of $1001$ nodes (leaves) are either empty node $(0)$ or \textit{miss} node (no key, just weight).
+For testing purposes, all evolutionary operators have the same, equal \textit{selection probability} ($0.2$).
 
-We compared our results with the deterministic algorithm (based on \textit{Knuth algorithm}) with time complexity $O(n^3)$ and memory $O(n^2)$. For $n=1000$ our algorithm gave optimal results in over one second.
+We compared our results with a deterministic algorithm (based on \textit{Knuth algorithm}) with time complexity $O(n^3)$ and memory $O(n^2)$. For $n=1000$ our algorithm gave optimal results in just over one second.
 An evolutionary optimization time and memory complexity are linear. But it does not give us optimal results.
 
 \clearpage
@@ -346,37 +348,31 @@ An evolutionary optimization time and memory complexity are linear. But it does 
 
 \begin{table}[ht]
 \centering
-\begin{tabular}{|l|l|l|l|} 
-\cline{2-4}
-\multicolumn{1}{l|}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
-\hline
+\begin{tabular}{llll} 
+\toprule
+\multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
+\cmidrule{2-4}
 List BST              & 248957428 & 123205851 (201 ms) & 4204240 (1.04 s)\\ 
-\hline
-Non optimal BST       & 335374031 & 99164607 (502 ms) & 4405410 (1.04 s)\\                                                                                                                                                                            
-\hline
-Balanced BST          &  4519495 & 4519481 (200 ms) & 4258543 (1.09 s)\\
-\hline
+Non optimal BST       & 335374031 & 99164607 (502 ms) & 4405410 (1.04 s)\\                                               Balanced BST          &  4519495 & 4519481 (200 ms) & 4258543 (1.09 s)\\
+\bottomrule
 \end{tabular}
 \end{table}
 
 
-For already balanced BST we did not notice big improvements, but for \textit{pathological trees} (\textit{List BST} and \textit{Non optimal BST}) we can quickly get two or three times better evaluation than the original value.
+For an already balanced BST we did not notice much improvement, but for \textit{pathological trees} (\textit{List BST} and \textit{Non optimal BST}) we can quickly get two or three times better evaluation than the original value.
 
-Conclusion - if we want to get results quickly with very low memory footprint and we do not need super optimal values, then evolutionary operators can be a good choice. Especially for a large number of nodes ($n > 1000$) where deterministic algorithms may work for minutes and most likely our binary trees are not balanced. 
+Conclusion - if we want to get results quickly with very low memory footprint and we do not need super optimal values, then evolutionary operators can be a good choice. Especially for a large numbers of nodes ($n > 1000$) where deterministic algorithms may work for minutes and where our binary trees are not balanced. 
 For instance for $n=2000$ the deterministic algorithm ran for \textit{19 seconds}.
 
 \begin{table}[ht]
 \centering
-\begin{tabular}{|l|l|l|l|} 
-\cline{2-4}
-\multicolumn{1}{l|}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
-\hline
+\begin{tabular}{llll} 
+\toprule
+\multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\evaluation\end{tabular} & \begin{tabular}[c]{@{}l@{}}evolutionary\\optimization\\value (time)\end{tabular}              & \begin{tabular}[c]{@{}l@{}}optimal\\evaluation\\ value (time)\end{tabular}  \\ 
+\cmidrule{2-4}
 List BST              & 2070975464 & 1023575224 (925 ms) & 19418243 (16 s)\\ 
-\hline
-Non optimal BST       & 2666666000 & 782461510 (1 s) & 19431435 (19 s)\\                                                                                                                                                                            
-\hline
-Balanced BST          &  19910294 & 19910270 (985 ms) & 18848413 (19 s)\\
-\hline
+Non optimal BST       & 2666666000 & 782461510 (1 s) & 19431435 (19 s)\\                                                 Balanced BST          &  19910294 & 19910270 (985 ms) & 18848413 (19 s)\\
+\bottomrule
 \end{tabular}
 \end{table}
 \end{document}
