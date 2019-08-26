@@ -14,7 +14,8 @@ var (
 	NNodes  = flag.Int("nodes", 1000, "number of internal nodes.")
 	MaxTime = flag.Duration("maxtime", 1000*time.Millisecond, "context timeout (in ms.) for evop.")
 	MaxIter = flag.Int("maxiter", 1000, "maximum number of iterations with no progress.")
-	Debug   = flag.Bool("debug", false, "debug output")
+	BST     = flag.Bool("bst", false, "binary tree satisfies bst constraint.")
+	Debug   = flag.Bool("debug", false, "debug output.")
 
 	InvertionRate  = flag.Float64("invertion", 0.2, "invertion rate")
 	SwapRate       = flag.Float64("swap", 0.2, "swap rate")
@@ -29,6 +30,7 @@ func init() {
 	fmt.Printf("\tnodes: %d (total: %d)\n", *NNodes, 2*(*NNodes)+1)
 	fmt.Printf("\tmaxtime: %v\n", *MaxTime)
 	fmt.Printf("\tmaxiter: %d\n", *MaxIter)
+	fmt.Printf("\tbst: %v\n", *BST)
 	fmt.Printf("\tdebug: %v\n", *Debug)
 	fmt.Println("Rates:")
 	fmt.Printf("\tinvertion: %.2f\n", *InvertionRate)
@@ -39,7 +41,7 @@ func init() {
 }
 
 func TestOptimizeListBST(t *testing.T) {
-	for nomiss := false; ; nomiss = !nomiss {
+	for _, nomiss := range []bool{false, true} {
 		bst, genome := randListBST(*NNodes, nomiss)
 		val := eval(genome)
 		t.Logf("eval: %d\n", val)
@@ -55,8 +57,10 @@ func TestOptimizeListBST(t *testing.T) {
 			withOperator(crossover, float32(*CrossoverRate)).
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
-			withConstraint(isBinTree).
-			withConstraint(isBST)
+			withConstraint(isBinTree)
+		if *BST {
+			id = id.withConstraint(isBST)
+		}
 
 		t.Run("evop.optimize", func(*testing.T) {
 			t0 := time.Now()
@@ -75,15 +79,11 @@ func TestOptimizeListBST(t *testing.T) {
 				fmt.Println(bst)
 			}
 		})
-
-		if nomiss {
-			break
-		}
 	}
 }
 
 func TestOptimizeNonOptimalBST(t *testing.T) {
-	for nomiss := false; ; nomiss = !nomiss {
+	for _, nomiss := range []bool{false, true} {
 		bst, genome := randNonOptimalBST(*NNodes, nomiss)
 		val := eval(genome)
 		t.Logf("eval: %d\n", val)
@@ -99,8 +99,10 @@ func TestOptimizeNonOptimalBST(t *testing.T) {
 			withOperator(crossover, float32(*CrossoverRate)).
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
-			withConstraint(isBinTree).
-			withConstraint(isBST)
+			withConstraint(isBinTree)
+		if *BST {
+			id = id.withConstraint(isBST)
+		}
 
 		t.Run("evop.optimize", func(*testing.T) {
 			t0 := time.Now()
@@ -119,15 +121,11 @@ func TestOptimizeNonOptimalBST(t *testing.T) {
 				fmt.Println(bst)
 			}
 		})
-
-		if nomiss {
-			break
-		}
 	}
 }
 
 func TestOptimizeBalancedBST(t *testing.T) {
-	for nomiss := false; ; nomiss = !nomiss {
+	for _, nomiss := range []bool{false, true} {
 		bst, genome := randBalancedBST(*NNodes, nomiss)
 		val := eval(genome)
 		t.Logf("eval: %d\n", val)
@@ -143,8 +141,10 @@ func TestOptimizeBalancedBST(t *testing.T) {
 			withOperator(crossover, float32(*CrossoverRate)).
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
-			withConstraint(isBinTree).
-			withConstraint(isBST)
+			withConstraint(isBinTree)
+		if *BST {
+			id = id.withConstraint(isBST)
+		}
 
 		t.Run("evop.optimize", func(*testing.T) {
 			t0 := time.Now()
@@ -163,10 +163,6 @@ func TestOptimizeBalancedBST(t *testing.T) {
 				fmt.Println(bst)
 			}
 		})
-
-		if nomiss {
-			break
-		}
 	}
 }
 
@@ -176,28 +172,28 @@ func TestSplayRight(t *testing.T) {
 		expected string
 	}{
 		{
-			g:        "111100000",
-			expected: "111000100",
+			g:        "abcd00000",
+			expected: "bcd000a00",
 		},
 		{
-			g:        "111000100",
-			expected: "110010100",
+			g:        "bcd000a00",
+			expected: "cd00b0a00",
 		},
 		{
-			g:        "110010100",
-			expected: "101010100",
+			g:        "cd0b0a000",
+			expected: "d0cb0a000",
 		},
 		{
-			g:        "110100100",
-			expected: "101100100",
+			g:        "ab0c00d00",
+			expected: "b0ac00d00",
 		},
 		{
-			g:        "100",
-			expected: "100",
+			g:        "a00",
+			expected: "a00",
 		},
 		{
-			g:        "111001010010100",
-			expected: "110011010010100",
+			g:        "abc00d0e00f0g00",
+			expected: "bc00ad0e00f0g00",
 		},
 	}
 
@@ -251,36 +247,36 @@ func TestSplayLeft(t *testing.T) {
 		expected string
 	}{
 		{
-			g:        "1011000",
-			expected: "1101000",
+			g:        "a0bc000",
+			expected: "ba0c000",
 		},
 		{
-			g:        "111000100",
-			expected: "111100000",
+			g:        "abc000d00",
+			expected: "dabc00000",
 		},
 		{
-			g:        "111100000",
-			expected: "111100000",
+			g:        "abcd00000",
+			expected: "abcd00000",
 		},
 		{
-			g:        "111001010010100",
-			expected: "111100101000100",
+			g:        "abc00d0e00f0g00",
+			expected: "fabc00d0e000g00",
 		},
 		{
-			g:        "1010100",
-			expected: "1100100",
+			g:        "a0b0c00",
+			expected: "ba00c00",
 		},
 		{
-			g:        "1100100",
-			expected: "1110000",
+			g:        "ba00c00",
+			expected: "cba0000",
 		},
 		{
-			g:        "100",
-			expected: "100",
+			g:        "a00",
+			expected: "a00",
 		},
 		{
-			g:        "111111000000100",
-			expected: "111111100000000",
+			g:        "abcdef000000g00",
+			expected: "gabcdef00000000",
 		},
 	}
 
