@@ -8,7 +8,7 @@ Deterministic algorithms like Knuth's dynamic programming algorithm is capable o
 Our work is kind of an experiment, checking for what cases optimization binary trees by genetic and evolutionary operators makes sense.
 
 - mcts (Monte Carlo Tree Search)
-This is a continuation of previous _bintree (Binary tree optimization using evolutionary operators)_ research,
-but instead of selection algorithm, we tried to apply _mcts (Monte Carlo Tree Search)_ algorithms.
+This is a continuation of _bintree (Binary tree optimization using evolutionary operators)_ research,
+but instead of (1+1) selection algorithm, we tried to apply _mcts (Monte Carlo Tree Search)_ algorithms.
 
 > Monte Carlo tree search (mcts) is a heuristic search algorithm for some kinds of decision processes, most notably those employed in game play.

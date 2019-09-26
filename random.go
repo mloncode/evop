@@ -1,4 +1,4 @@
-package mcts
+package evop
 
 import (
 	"math/rand"

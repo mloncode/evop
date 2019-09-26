@@ -1,4 +1,4 @@
-package bintree
+package evop
 
 import (
 	"context"
@@ -12,27 +12,34 @@ import (
 
 var (
 	NNodes  = flag.Int("nodes", 1000, "number of internal nodes.")
-	MaxTime = flag.Duration("maxtime", 1000*time.Millisecond, "context timeout (in ms.) for evop.")
+	MaxTime = flag.Duration("maxtime", 1000*time.Millisecond, "context timeout for evop.")
 	MaxIter = flag.Int("maxiter", 1000, "maximum number of iterations with no progress.")
+	Div     = flag.Float64("div", 1.0, "division factor.")
 	BST     = flag.Bool("bst", false, "binary tree satisfies bst constraint.")
 	Debug   = flag.Bool("debug", false, "debug output.")
+
+	C = flag.Int("exploration", 5, "exploration constant.")
 
 	InvertionRate  = flag.Float64("invertion", 0.2, "invertion rate")
 	SwapRate       = flag.Float64("swap", 0.2, "swap rate")
 	CrossoverRate  = flag.Float64("crossover", 0.2, "crossover rate")
 	SplayLeftRate  = flag.Float64("splayleft", 0.2, "splay left rate")
-	SplayRightRate = flag.Float64("splayright", 02, "splay right rate")
+	SplayRightRate = flag.Float64("splayright", 0.2, "splay right rate")
 )
 
-func init() {
+func Init() {
 	flag.Parse()
-	fmt.Println("BinTree:")
+	fmt.Println("Flags:")
 	fmt.Printf("\tnodes: %d (total: %d)\n", *NNodes, 2*(*NNodes)+1)
 	fmt.Printf("\tmaxtime: %v\n", *MaxTime)
 	fmt.Printf("\tmaxiter: %d\n", *MaxIter)
+	fmt.Printf("\tdiv: %.2f\n", *Div)
 	fmt.Printf("\tbst: %v\n", *BST)
 	fmt.Printf("\tdebug: %v\n", *Debug)
+
 	fmt.Println("Rates:")
+	fmt.Printf("\texploration: %d\n", *C)
+
 	fmt.Printf("\tinvertion: %.2f\n", *InvertionRate)
 	fmt.Printf("\tswap: %.2f\n", *SwapRate)
 	fmt.Printf("\tcrossover: %.2f\n", *CrossoverRate)
@@ -40,17 +47,17 @@ func init() {
 	fmt.Printf("\tsplay right: %.2f\n", *SplayRightRate)
 }
 
+func TestInit(_ *testing.T) { Init() }
+
 func TestOptimizeListBST(t *testing.T) {
 	for _, nomiss := range []bool{false, true} {
 		bst, genome := randListBST(*NNodes, nomiss)
 		val := eval(genome)
-		t.Logf("eval: %d\n", val)
+		t.Logf("eval: %.2f\n", float64(val)/(*Div))
 		if *Debug {
 			fmt.Println("BST:", bst)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
-		defer cancel()
 		id := newIndividual(genome).
 			withOperator(inversion, float32(*InvertionRate)).
 			withOperator(swap, float32(*SwapRate)).
@@ -58,25 +65,52 @@ func TestOptimizeListBST(t *testing.T) {
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
 			withConstraint(isBinTree)
+
+		mcts := newMCTS(genome).
+			withExploration(*C).
+			withOperator(crossover).
+			withOperator(inversion).
+			withOperator(swap).
+			withOperator(splayLeft).
+			withOperator(splayRight).
+			withConstraint(isBinTree)
+
 		if *BST {
 			id = id.withConstraint(isBST)
+			mcts = mcts.withConstraint(isBST)
 		}
 
+		t.Run("bintree.optimize", func(*testing.T) {
+			t0 := time.Now()
+			min := bst.optimize()
+			t.Logf("[%v] bintree.optimize (nomiss: %v): %.2f\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div))
+			if *Debug {
+				fmt.Println(bst)
+			}
+		})
+
 		t.Run("evop.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
 			min, err := id.optimize(ctx, *MaxIter)
-			t.Logf("[%v] evop.optimize (nomiss: %v): %d %v\n", time.Now().Sub(t0), nomiss, min, err)
+			t.Logf("[%v] evop.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
 				fmt.Println(newBinTree(id.genome))
 			}
 		})
 
-		t.Run("bintree.optimize", func(*testing.T) {
+		t.Run("mcts.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
-			min := bst.optimize()
-			t.Logf("[%v] binTree.optimize (nomiss: %v): %d\n", time.Now().Sub(t0), nomiss, min)
+			min, err := mcts.optimize(ctx, *MaxIter)
+			t.Logf("[%v] mcts.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
-				fmt.Println(bst)
+				fmt.Println(newBinTree(mcts.s0.genome))
+				fmt.Println(mcts.String())
 			}
 		})
 	}
@@ -86,13 +120,11 @@ func TestOptimizeNonOptimalBST(t *testing.T) {
 	for _, nomiss := range []bool{false, true} {
 		bst, genome := randNonOptimalBST(*NNodes, nomiss)
 		val := eval(genome)
-		t.Logf("eval: %d\n", val)
+		t.Logf("eval: %.2f\n", float64(val)/(*Div))
 		if *Debug {
 			fmt.Println("BST:", bst)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
-		defer cancel()
 		id := newIndividual(genome).
 			withOperator(inversion, float32(*InvertionRate)).
 			withOperator(swap, float32(*SwapRate)).
@@ -100,25 +132,52 @@ func TestOptimizeNonOptimalBST(t *testing.T) {
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
 			withConstraint(isBinTree)
+
+		mcts := newMCTS(genome).
+			withExploration(*C).
+			withOperator(crossover).
+			withOperator(inversion).
+			withOperator(swap).
+			withOperator(splayLeft).
+			withOperator(splayRight).
+			withConstraint(isBinTree)
+
 		if *BST {
 			id = id.withConstraint(isBST)
+			mcts = mcts.withConstraint(isBST)
 		}
 
+		t.Run("bintree.optimize", func(*testing.T) {
+			t0 := time.Now()
+			min := bst.optimize()
+			t.Logf("[%v] bintree.optimize (nomiss: %v): %.2f\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div))
+			if *Debug {
+				fmt.Println(bst)
+			}
+		})
+
 		t.Run("evop.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
 			min, err := id.optimize(ctx, *MaxIter)
-			t.Logf("[%v] evop.optimize (nomiss: %v): %d %v\n", time.Now().Sub(t0), nomiss, min, err)
+			t.Logf("[%v] evop.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
 				fmt.Println(newBinTree(id.genome))
 			}
 		})
 
-		t.Run("bintree.optimize", func(*testing.T) {
+		t.Run("mcts.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
-			min := bst.optimize()
-			t.Logf("[%v] binTree.optimize (nomiss: %v): %d\n", time.Now().Sub(t0), nomiss, min)
+			min, err := mcts.optimize(ctx, *MaxIter)
+			t.Logf("[%v] mcts.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
-				fmt.Println(bst)
+				fmt.Println(newBinTree(mcts.s0.genome))
+				fmt.Println(mcts.String())
 			}
 		})
 	}
@@ -128,13 +187,11 @@ func TestOptimizeBalancedBST(t *testing.T) {
 	for _, nomiss := range []bool{false, true} {
 		bst, genome := randBalancedBST(*NNodes, nomiss)
 		val := eval(genome)
-		t.Logf("eval: %d\n", val)
+		t.Logf("eval: %.2f\n", float64(val)/(*Div))
 		if *Debug {
 			fmt.Println("BST:", bst)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
-		defer cancel()
 		id := newIndividual(genome).
 			withOperator(inversion, float32(*InvertionRate)).
 			withOperator(swap, float32(*SwapRate)).
@@ -142,27 +199,55 @@ func TestOptimizeBalancedBST(t *testing.T) {
 			withOperator(splayLeft, float32(*SplayLeftRate)).
 			withOperator(splayRight, float32(*SplayRightRate)).
 			withConstraint(isBinTree)
+
+		mcts := newMCTS(genome).
+			withExploration(*C).
+			withOperator(crossover).
+			withOperator(inversion).
+			withOperator(swap).
+			withOperator(splayLeft).
+			withOperator(splayRight).
+			withConstraint(isBinTree)
+
 		if *BST {
 			id = id.withConstraint(isBST)
+			mcts = mcts.withConstraint(isBST)
 		}
 
+		t.Run("bintree.optimize", func(*testing.T) {
+			t0 := time.Now()
+			min := bst.optimize()
+			t.Logf("[%v] binTree.optimize (nomiss: %v): %.2f\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div))
+			if *Debug {
+				fmt.Println(bst)
+			}
+		})
+
 		t.Run("evop.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
 			min, err := id.optimize(ctx, *MaxIter)
-			t.Logf("[%v] evop.optimize (nomiss: %v): %d %v\n", time.Now().Sub(t0), nomiss, min, err)
+			t.Logf("[%v] evop.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
 				fmt.Println(newBinTree(id.genome))
 			}
 		})
 
-		t.Run("bintree.optimize", func(*testing.T) {
+		t.Run("mcts.optimize", func(*testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), *MaxTime)
+			defer cancel()
+
 			t0 := time.Now()
-			min := bst.optimize()
-			t.Logf("[%v] binTree.optimize (nomiss: %v): %d\n", time.Now().Sub(t0), nomiss, min)
+			min, err := mcts.optimize(ctx, *MaxIter)
+			t.Logf("[%v] mcts.optimize (nomiss: %v): %.2f %v\n", time.Now().Sub(t0), nomiss, float64(min)/(*Div), err)
 			if *Debug {
-				fmt.Println(bst)
+				fmt.Println(newBinTree(mcts.s0.genome))
+				fmt.Println(mcts.String())
 			}
 		})
+
 	}
 }
 
@@ -170,39 +255,50 @@ func TestSplayRight(t *testing.T) {
 	tests := []struct {
 		g        string
 		expected string
+		ok       bool
 	}{
 		{
 			g:        "abcd00000",
 			expected: "bcd000a00",
+			ok:       true,
 		},
 		{
 			g:        "bcd000a00",
 			expected: "cd00b0a00",
+			ok:       true,
 		},
 		{
 			g:        "cd0b0a000",
 			expected: "d0cb0a000",
+			ok:       true,
 		},
 		{
 			g:        "ab0c00d00",
 			expected: "b0ac00d00",
+			ok:       true,
 		},
 		{
 			g:        "a00",
 			expected: "a00",
+			ok:       false,
 		},
 		{
 			g:        "abc00d0e00f0g00",
 			expected: "bc00ad0e00f0g00",
+			ok:       true,
 		},
 	}
 
 	for i, ti := range tests {
-		g := splayRight(genome(t.Helper, ti.g))
+		g, ok := splayRight(genome(t.Helper, ti.g))
+		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
 
-		actual, expected := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
-		if expected != actual {
-			t.Errorf("[%d] splayRight(%s):\n\tactual: %s\n\texpected: %s\n", i, g, actual, expected)
+		if ti.ok != ok {
+			t.Errorf("[%d] splayRight(%s) - did not change genome:\n\tactual: %s\n\texpected: %s\n", i, g, act, exp)
+		}
+
+		if exp != act {
+			t.Errorf("[%d] splayRight(%s):\n\tactual: %s\n\texpected: %s\n", i, g, act, exp)
 		}
 	}
 }
@@ -211,25 +307,25 @@ func TestSelectOperator(t *testing.T) {
 	stat := make(map[string]int)
 
 	id := newIndividual(nil).
-		withOperator(func(g []*gene) []*gene {
+		withOperator(func(g []*gene) ([]*gene, bool) {
 			stat["I"]++
-			return g
+			return g, true
 		}, float32(*InvertionRate)).
-		withOperator(func(g []*gene) []*gene {
+		withOperator(func(g []*gene) ([]*gene, bool) {
 			stat["S"]++
-			return g
+			return g, true
 		}, float32(*SwapRate)).
-		withOperator(func(g []*gene) []*gene {
+		withOperator(func(g []*gene) ([]*gene, bool) {
 			stat["X"]++
-			return g
+			return g, true
 		}, float32(*CrossoverRate)).
-		withOperator(func(g []*gene) []*gene {
+		withOperator(func(g []*gene) ([]*gene, bool) {
 			stat["SL"]++
-			return g
+			return g, true
 		}, float32(*SplayLeftRate)).
-		withOperator(func(g []*gene) []*gene {
+		withOperator(func(g []*gene) ([]*gene, bool) {
 			stat["SR"]++
-			return g
+			return g, true
 		}, float32(*SplayRightRate))
 
 	for i := 0; i < 100; i++ {
@@ -245,47 +341,60 @@ func TestSplayLeft(t *testing.T) {
 	tests := []struct {
 		g        string
 		expected string
+		ok       bool
 	}{
 		{
 			g:        "a0bc000",
 			expected: "ba0c000",
+			ok:       true,
 		},
 		{
 			g:        "abc000d00",
 			expected: "dabc00000",
+			ok:       true,
 		},
 		{
 			g:        "abcd00000",
 			expected: "abcd00000",
+			ok:       false,
 		},
 		{
 			g:        "abc00d0e00f0g00",
 			expected: "fabc00d0e000g00",
+			ok:       true,
 		},
 		{
 			g:        "a0b0c00",
 			expected: "ba00c00",
+			ok:       true,
 		},
 		{
 			g:        "ba00c00",
 			expected: "cba0000",
+			ok:       true,
 		},
 		{
 			g:        "a00",
 			expected: "a00",
+			ok:       false,
 		},
 		{
 			g:        "abcdef000000g00",
 			expected: "gabcdef00000000",
+			ok:       true,
 		},
 	}
 
 	for i, ti := range tests {
-		g := splayLeft(genome(t.Helper, ti.g))
+		g, ok := splayLeft(genome(t.Helper, ti.g))
+		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
 
-		actual, expected := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
-		if expected != actual {
-			t.Errorf("[%d] splayLeft(%s):\n\tactual: %s\n\texpected: %s\n", i, g, actual, expected)
+		if ti.ok != ok {
+			t.Errorf("[%d] splayLeft(%s) - did not change genome:\n\tactual: %s\n\texpected: %s\n", i, g, act, exp)
+		}
+
+		if exp != act {
+			t.Errorf("[%d] splayLeft(%s):\n\tactual: %s\n\texpected: %s\n", i, g, act, exp)
 		}
 	}
 }
@@ -340,10 +449,10 @@ func TestCrossoverAt(t *testing.T) {
 
 	for i, ti := range tests {
 		g := crossoverAt(genome(t.Helper, ti.g), ti.k)
-
 		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
+
 		if exp != act {
-			t.Errorf("[%d] crossoverAt(%s, %d):\n\tactual: %s\n\texpected: %s\n", i, ti.g, ti.k, act, ti.expected)
+			t.Errorf("[%d] crossoverAt(%s, %d):\n\tactual: %s\n\texpected: %s\n", i, ti.g, ti.k, act, exp)
 		}
 	}
 }
@@ -401,8 +510,8 @@ func TestSwapAt(t *testing.T) {
 
 	for i, ti := range tests {
 		g := swapAt(genome(t.Helper, ti.g), ti.k1, ti.k2)
-
 		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
+
 		if exp != act {
 			t.Errorf("[%d] swapAt(%s, %d, %d):\n\tactual: %s\n\texpected: %s\n", i, ti.g, ti.k1, ti.k2, act, exp)
 		}
