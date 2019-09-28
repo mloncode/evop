@@ -12,9 +12,3 @@ This is a continuation of _bintree (Binary tree optimization using evolutionary 
 but instead of (1+1) selection algorithm, we tried to apply _mcts (Monte Carlo Tree Search)_ algorithms.
 
 > Monte Carlo tree search (mcts) is a heuristic search algorithm for some kinds of decision processes, most notably those employed in game play.
-
-<object data="https://github.com/mloncode/evop/blob/master/bintree/bintree.pdf" type="application/pdf" width="750px" height="750px">
-    <embed src="https://github.com/mloncode/evop/blob/master/bintree/bintree.pdf" type="application/pdf">
-        <p>This browser does not support PDFs. Please download the PDF to view it: <a href="http://yoursite.com/the.pdf">Download PDF</a>.</p>
-    </embed>
-</object>
