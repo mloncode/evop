@@ -540,7 +540,7 @@ where:
 
 $S_i$ is a $i-th$ state,
 
-$C$ is a constant in order to balance between the exploitation term $\overline{V_i}$ and exploration term $\sqrt{\frac{\ln{N}}{n_i}}$ (the larger it is, the more algorithm favors exploration over exploitation),
+$C$ is a constant in order to balance between the exploitation term $\overline{V_i}$ and exploration term $\sqrt{\frac{\ln{N}}{n_i}}$ (the larger the constant, the more the algorithm will favor exploration over exploitation),
 
 $\overline{V_i}$ is an average value of $i-th$ state,
 
@@ -549,20 +549,23 @@ $N$ is a total number of all visits,
 $n_i$ is a number of visits of $i-th$ node.
 
 \item Node expansion phase where you add extra nodes into the tree.
-\item Rollout phase which is a random simulation of the problem we are solving, to find a value.
-\item Backpropagation phase which is where you take a value found from a \textit{rollout} and put that in propriate places in the tree.
+\item Rollout phase which is a random simulation of the problem we are solving to find a value.
+\item Backpropagation phase which is where you take a value found from a \textit{rollout} and put that in the appropriate places in the tree.
 \end{itemize}
 
 \subsection{Tree traversal and node expansion}
+
+Let have a look at the algorithm for the first two phases (Figure \ref{fig:mcts}).
+We start with $S_0$. If it is not a leaf node then you have to choose which child of the current states we are going to explore. We do this by calculating $UCB1$ value of each of the states and we choose the one which maximizes that value. We keep doing this until we get to a leaf node in the tree. Then we check how many times the node has been sampled. If it has never been sampled before, we do not expand it - we just do a rollout from there. However, if it has been sampled before, we add new nodes into the tree. For each available action from the current state, add a new state to the tree, and then let current be the first of those new child nodes. Then we do a rollout from this new child node.
+
 \begin{figure}
 \centering
-\includegraphics[scale=0.55]{mcts.png}
+\includegraphics[scale=0.60]{mcts.png}
 \caption{Monte Carlo tree search (tree traversal and node expansion)}
 \label{fig:mcts}
 \end{figure}
 
-Let have a look at the algorithm for the first two phases (Figure \ref{fig:mcts}).
-We start with $S_0$, that is an initial state being the current state and we check is it a leaf node. If it is not a leaf node then you have to choose which child of the current states we are going to explore. And we do this by calculating $UCB1$ value of each of the state and we choose the one which maximizes that value. We keep doing this until we get to a leaf node in the tree. Then we check how many times the node has been sampled. If it has never been sampled before, we do not expand it - we just do a rollout from there. However, if it has been sampled before, we add new nodes into the tree. What we do is for each available action from the current state, add a new state to the tree, and then we let current be the first of those new child nodes, and then we do a rollout from this new child node.
+\clearpage 
 
 \subsection{Rollout}
 The rollout process is very simple:
@@ -593,7 +596,7 @@ The rollout process is very simple:
 \end{algorithm}
 
 \subsection{Selection strategy}
-In order to decrease probability factor in optimization process, we decided to adopt \textbf{MCTS} as an experimental selection strategy (instead of \textit{(1+1) strategy}).
+In order to decrease the probability factor in the optimization process, we decided to adopt \textbf{MCTS} as an experimental selection strategy (instead of \textit{(1+1) strategy}).
 In other words, we still encode binary trees into chromosomes, and our evolutionary operators are available actions used in the \textit{rollout} algorithm.
 But our selection process is mainly based on $UCB1$ formula and \textit{negative reward} which is evaluation value of binary tree: $-\sumin{i=0}{n-1} w_i (h_i + 1)$.
 Why do we use a \textit{negative reward}? Because our task is to find a minimal tree evaluation, but at the same time we follow \textbf{MCTS} rules and expand nodes with the highest $UCB1$ value.
