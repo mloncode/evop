@@ -1,4 +1,4 @@
-package bintree
+package evop
 
 import (
 	"math/rand"
