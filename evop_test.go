@@ -20,11 +20,13 @@ var (
 
 	C = flag.Int("exploration", 5, "exploration constant.")
 
-	InvertionRate  = flag.Float64("invertion", 0.2, "invertion rate")
-	SwapRate       = flag.Float64("swap", 0.2, "swap rate")
-	CrossoverRate  = flag.Float64("crossover", 0.2, "crossover rate")
-	SplayLeftRate  = flag.Float64("splayleft", 0.2, "splay left rate")
-	SplayRightRate = flag.Float64("splayright", 0.2, "splay right rate")
+	InvertionRate         = flag.Float64("invertion", 0.0, "invertion rate")
+	SwapRate              = flag.Float64("swap", 0.0, "swap rate")
+	CrossoverRate         = flag.Float64("crossover", 0.0, "crossover rate")
+	SplayLeftRate         = flag.Float64("splayleft", 0.0, "splay left rate")
+	SplayRightRate        = flag.Float64("splayright", 0.0, "splay right rate")
+	SplayLeftRateSubTree  = flag.Float64("splayleftst", 0.5, "splay left sub tree rate")
+	SplayRightRateSubTree = flag.Float64("splayrightst", 0.5, "splay right sub tree rate")
 )
 
 func Init() {
@@ -45,6 +47,9 @@ func Init() {
 	fmt.Printf("\tcrossover: %.2f\n", *CrossoverRate)
 	fmt.Printf("\tsplay left: %.2f\n", *SplayLeftRate)
 	fmt.Printf("\tsplay right: %.2f\n", *SplayRightRate)
+	fmt.Printf("\tsplay left sub tree: %.2f\n", *SplayLeftRateSubTree)
+	fmt.Printf("\tsplay right sub tree: %.2f\n", *SplayRightRateSubTree)
+
 }
 
 func TestInit(_ *testing.T) { Init() }
@@ -55,15 +60,12 @@ func TestOptimizeListBST(t *testing.T) {
 		val := eval(genome)
 		t.Logf("eval: %.2f\n", float64(val)/(*Div))
 		if *Debug {
-			fmt.Println("BST:", bst)
+			fmt.Println("BST:\n", bst)
 		}
 
 		id := newIndividual(genome).
-			withOperator(inversion, float32(*InvertionRate)).
-			withOperator(swap, float32(*SwapRate)).
-			withOperator(crossover, float32(*CrossoverRate)).
-			withOperator(splayLeft, float32(*SplayLeftRate)).
-			withOperator(splayRight, float32(*SplayRightRate)).
+			withOperator(splayLeftSubTree, float32(*SplayLeftRateSubTree)).
+			withOperator(splayRightSubTree, float32(*SplayRightRateSubTree)).
 			withConstraint(isBinTree)
 
 		mcts := newMCTS(genome).
@@ -126,11 +128,8 @@ func TestOptimizeNonOptimalBST(t *testing.T) {
 		}
 
 		id := newIndividual(genome).
-			withOperator(inversion, float32(*InvertionRate)).
-			withOperator(swap, float32(*SwapRate)).
-			withOperator(crossover, float32(*CrossoverRate)).
-			withOperator(splayLeft, float32(*SplayLeftRate)).
-			withOperator(splayRight, float32(*SplayRightRate)).
+			withOperator(splayLeftSubTree, float32(*SplayLeftRateSubTree)).
+			withOperator(splayRightSubTree, float32(*SplayRightRateSubTree)).
 			withConstraint(isBinTree)
 
 		mcts := newMCTS(genome).
@@ -193,11 +192,8 @@ func TestOptimizeBalancedBST(t *testing.T) {
 		}
 
 		id := newIndividual(genome).
-			withOperator(inversion, float32(*InvertionRate)).
-			withOperator(swap, float32(*SwapRate)).
-			withOperator(crossover, float32(*CrossoverRate)).
-			withOperator(splayLeft, float32(*SplayLeftRate)).
-			withOperator(splayRight, float32(*SplayRightRate)).
+			withOperator(splayLeftSubTree, float32(*SplayLeftRateSubTree)).
+			withOperator(splayRightSubTree, float32(*SplayRightRateSubTree)).
 			withConstraint(isBinTree)
 
 		mcts := newMCTS(genome).
@@ -247,7 +243,6 @@ func TestOptimizeBalancedBST(t *testing.T) {
 				fmt.Println(mcts.String())
 			}
 		})
-
 	}
 }
 
@@ -300,6 +295,79 @@ func TestSplayRight(t *testing.T) {
 		if exp != act {
 			t.Errorf("[%d] splayRight(%s):\n\tactual: %s\n\texpected: %s\n", i, g, act, exp)
 		}
+	}
+}
+
+func TestSplayRightSubTree(t *testing.T) {
+	tests := []struct {
+		g        string
+		k        int
+		expected string
+		ok       bool
+	}{
+		{
+			g:        "abcd00000",
+			k:        2,
+			expected: "abd0c0000",
+			ok:       true,
+		},
+		{
+			g:        "abc0000",
+			k:        5,
+			expected: "ac0b000",
+			ok:       true,
+		},
+		{
+			g:        "abd00e00cf0h00g00",
+			k:        8,
+			expected: "abd00e00f0ch00g00",
+			ok:       true,
+		},
+		{
+			g:        "bcd000a00",
+			k:        1,
+			expected: "bd0c00a00",
+			ok:       true,
+		},
+		{
+			g:        "a00",
+			k:        1,
+			expected: "a00",
+			ok:       false,
+		},
+		{
+			g:        "abc00d0e00f0g00",
+			k:        6,
+			expected: "abc00d0e00f0g00",
+			ok:       false,
+		},
+		{
+			g:        "abc00d0e00f0g00",
+			k:        1,
+			expected: "ac0b0d0e00f0g00",
+			ok:       true,
+		},
+	}
+
+	for i, ti := range tests {
+		g, ok := splayRightSubTreeAt(genome(t.Helper, ti.g), ti.k)
+		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
+
+		if ti.ok != ok {
+			t.Errorf("[%d] splayRightSubTreeAt(%s, %d) - did not change genome:\n\tactual: %s\n\texpected: %s\n", i, g, ti.k, act, exp)
+		}
+
+		if exp != act {
+			t.Errorf("[%d] splayRightSubTreeAt(%s, %d):\n\tactual: %s\n\texpected: %s\n", i, g, ti.k, act, exp)
+		}
+	}
+}
+
+func TestSubTreeIndex(t *testing.T) {
+	g := genome(t.Helper, "abc0000")
+	i := subTreeIndex(g, 5)
+	if i != 1 {
+		t.Errorf("%d != 1\n", i)
 	}
 }
 
@@ -399,6 +467,52 @@ func TestSplayLeft(t *testing.T) {
 	}
 }
 
+func TestSplayLeftSubTree(t *testing.T) {
+	tests := []struct {
+		g        string
+		k        int
+		expected string
+		ok       bool
+	}{
+		{
+			g:        "ab0c000",
+			k:        1,
+			expected: "acb0000",
+			ok:       true,
+		},
+		{
+			g:        "abd00e00cf0h00g00",
+			k:        9,
+			expected: "abd00e00chf000g00",
+			ok:       true,
+		},
+		{
+			g:        "abd00e00cf0h00g00",
+			k:        8,
+			expected: "abd00e00gcf0h0000",
+			ok:       true,
+		},
+		{
+			g:        "a00",
+			k:        1,
+			expected: "a00",
+			ok:       false,
+		},
+	}
+
+	for i, ti := range tests {
+		g, ok := splayLeftSubTreeAt(genome(t.Helper, ti.g), ti.k)
+		act, exp := fmt.Sprintf("%s", g), fmt.Sprintf("%s", genome(t.Helper, ti.expected))
+
+		if ti.ok != ok {
+			t.Errorf("[%d] splayLeftSubTreeAt(%s, %d) - did not change genome:\n\tactual: %s\n\texpected: %s\n", i, g, ti.k, act, exp)
+		}
+
+		if exp != act {
+			t.Errorf("[%d] splayLeft(%s, %d):\n\tactual: %s\n\texpected: %s\n", i, g, ti.k, act, exp)
+		}
+	}
+}
 func TestCrossoverAt(t *testing.T) {
 	tests := []struct {
 		g        string

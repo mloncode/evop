@@ -181,6 +181,34 @@ func splayLeftAt(genome []*gene, k int) []*gene {
 	return genome
 }
 
+func splayLeftSubTree(genome []*gene) ([]*gene, bool) {
+	n := len(genome)
+	return splayLeftSubTreeAt(genome, randIntn(n))
+}
+
+func splayLeftSubTreeAt(genome []*gene, root int) ([]*gene, bool) {
+	n := len(genome)
+	k1 := subTreeIndex(genome, root)
+	cnt0, cnt1 := 0, 0
+	for i := k1; i < n; i++ {
+		if genome[i].isEmpty() {
+			cnt0++
+		} else {
+			cnt1++
+		}
+
+		if cnt0 > cnt1 {
+			k2 := i
+			if k2 < n {
+				_, b := splayLeft(genome[k1 : k2+1])
+				return genome, b
+			}
+		}
+	}
+
+	return genome, false
+}
+
 func splayRight(genome []*gene) ([]*gene, bool) {
 	n := len(genome)
 	if n > 1 && genome[1] != nil {
@@ -208,6 +236,56 @@ func splayRightAt(genome []*gene, k1, k2 int) []*gene {
 	copy(genome[0:], genome[k1:k2+1])
 	genome[k2] = g
 	return genome
+}
+
+func splayRightSubTree(genome []*gene) ([]*gene, bool) {
+	n := len(genome)
+	if n > 1 && genome[1] != nil {
+		return splayRightSubTreeAt(genome, randIntn(n))
+	}
+
+	return genome, false
+}
+
+func splayRightSubTreeAt(genome []*gene, root int) ([]*gene, bool) {
+	n := len(genome)
+	k1 := subTreeIndex(genome, root)
+
+	cnt0, cnt1 := 0, 0
+	for i := k1; i < n; i++ {
+		if genome[i].isEmpty() {
+			cnt0++
+		} else {
+			cnt1++
+		}
+
+		if cnt0 > cnt1 {
+			k2 := i
+			if k2 < n {
+				_, b := splayRight(genome[k1 : k2+1])
+				return genome, b
+			}
+		}
+	}
+
+	return genome, false
+}
+
+func subTreeIndex(genome []*gene, root int) int {
+	n := 0
+	for k := root; k > 0; k-- {
+		if genome[k].isEmpty() {
+			n++
+			continue
+		}
+
+		n--
+		if n < 2 {
+			return k
+		}
+	}
+
+	return 0
 }
 
 // isBinTree is a constraint which checks if given genome is a correctly encoded binary tree
