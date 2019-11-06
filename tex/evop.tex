@@ -9,6 +9,7 @@
 
 \author{Kuba Podgórski}
 \title{{\bf Binary tree optimization using evolutionary operators}}
+\date{}
 
 \newcommand{\sumin}[2]{\sum\limits_{#1}^{#2}}
 \newlength\singleindent
@@ -565,7 +566,7 @@ We start with $S_0$. If it is not a leaf node then you have to choose which chil
 \label{fig:mcts}
 \end{figure}
 
-\clearpage 
+\clearpage
 
 \subsection{Rollout}
 The rollout process is very simple:
@@ -685,61 +686,59 @@ We tested our optimization algorithms against three types of \textit{binary sear
 \end{figure}
 \end{description}
 
-Every tested tree had $1000$ \textit{internal nodes} (nodes with information - a key). Rest of $1001$ nodes (leaves) are either empty node $(0)$ or \textit{miss} node (no key, just weight).
-For testing purposes, all evolutionary operators have the same, equal \textit{selection probability} ($0.2$).
+Every tested tree had $1500$ \textit{internal nodes} (nodes with information - a key). Rest of $1501$ nodes (leaves) are either empty node $(0)$ or \textit{miss} node (no key, just weight).
 
-We compared our results with a deterministic algorithm (based on \textit{Knuth algorithm}) with time complexity $O(n^3)$ and memory $O(n^2)$. For $n=1000$ our algorithm gave optimal results in just over one second.
-An evolutionary optimization time and memory complexity are linear. But it does not give us optimal results.
+For testing purposes, we tried adjust \textit{selection probability} for each evolutionary operator. The best results we got after disabling all pure genetic operators (inversion, swap and crossover) and used only \textit{splay} operators. Both \textit{splay left} and \textit{splay right} have the same, equal \textit{selection probability} ($0.5$).
+
+We compared our results with a deterministic algorithm (based on \textit{Knuth algorithm}) with time complexity $O(n^3)$ and memory $O(n^2)$. For $n=1500$ our algorithm gave optimal results in over four seconds.
+
+An evolutionary optimization time and memory complexity are linear, but it does not give us optimal results.
 
 \clearpage
+
 \subsubsection{Results}
 
-
 \begin{table}[ht]
 \small
 \begin{tabular}{lllll}
 \toprule
 \multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\value\end{tabular} & \begin{tabular}[c]{@{}l@{}}evop\\value (time)\end{tabular} & \begin{tabular}[c]{@{}l@{}}mcts\\value (time)\end{tabular} & \begin{tabular}[c]{@{}l@{}}optimal\\ value (time)\end{tabular}  \\
 \cmidrule{2-5}
-List BST              & 246.28 & 124.51 (1 s) & 124.68 (1 s) & 4.20 (1.07 s)\\
-Non optimal BST       & 335.35 & 99.08 (1 s) &  99.16 (1 s) & 4.36 (1.07 s)\\
-Balanced BST          & 4.65 & 4.65 (0.12 s) & 4.65 (0.37 s) & 4.40 (0.92 s)\\
+List BST              & 852.98 & 19.46 (2 s) & 420.62 (2 s) & 10.24 (4.90 s)\\
+Non optimal BST       & 1130.03 & 18.18 (2 s) & 333.30 (2 s) & 10.55 (4.82 s)\\
+Balanced BST          & 11.11 & 10.91 (2 s) &  11.11 (0.7 s) & 10.40 (4.75 s)\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-
-
-For an already balanced BST we did not notice much improvement, but for \textit{pathological trees} (\textit{List BST} and \textit{Non optimal BST}) we can quickly get two or three times better evaluation than the original value.
+For an already balanced BST we did not notice much improvement, but for \textit{pathological trees} (\textit{List BST} and \textit{Non optimal BST}) we can quickly get better evaluation than the original value.
 
 Conclusion - if we want to get results quickly with very low memory footprint and we do not need super optimal values, then evolutionary operators can be a good choice. Especially for a large numbers of nodes ($n > 1000$) where deterministic algorithms may work for minutes and where our binary trees are not balanced.
-For instance for $n=2000$ the deterministic algorithm ran for \textit{15 seconds}.
-
+For instance for $n=2000$ the deterministic algorithm ran for about \textit{14 seconds}.
 \begin{table}[ht]
 \small
 \begin{tabular}{lllll}
 \toprule
 \multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\value\end{tabular} & \begin{tabular}[c]{@{}l@{}}evop\\value (time)\end{tabular} & \begin{tabular}[c]{@{}l@{}}mcts\\value (time)\end{tabular} & \begin{tabular}[c]{@{}l@{}}optimal\\ value (time)\end{tabular}  \\
 \cmidrule{2-5}
-List BST              & 1988.90 & 997.08 (1 s) & 997.55 (1 s) & 18.94 (15 s)\\
-Non optimal BST       & 2676.03 & 787.78 (1 s) & 787.83 (1 s) & 19.55 (15 s)\\
-Balanced BST          & 20.30 & 20.30 (1 s) & 20.30 (1 s) & 19.30 (14 s)\\
+List BST              & 2018.30 & 48.61 (3 s) & 999.27 (3 s) & 19.07 (13.98 s)\\
+Non optimal BST       & 2675.86 & 58.16 (3 s) & 787.75 (3 s) & 19.54 (14.47 s)\\
+Balanced BST          & 20.32 & 20.14 (3 s) & 20.32 (0.9 s) & 19.35 (14.75 s)\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Moreover, if we take a way \textit{BST} constraint (leave only \textit{binary tree} constraint) then evolutionary operators may give us
-results close to optimal ones.
 
+Moreover, if we do not evalutate \textit{misses} (only \textit{hits} - nodes with information) then evolutionary operators may give us results close to optimal ones.
 \begin{table}[ht]
 \small
 \begin{tabular}{llll}
 \toprule
-\multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\value\end{tabular} & \begin{tabular}[c]{@{}l@{}}evop\\value \end{tabular} & \begin{tabular}[c]{@{}l@{}}mcts\\value \end{tabular} \\
+\multicolumn{1}{l}{} & \begin{tabular}[c]{@{}l@{}}original\\value\end{tabular} & \begin{tabular}[c]{@{}l@{}}evop\\value \end{tabular} & \begin{tabular}[c]{@{}l@{}}optimal\\value \end{tabular} \\
 \cmidrule{2-4}
-List BST              & 250.04 & 6.19 & 38.69\\
-Non optimal BST       & 335.42 & 5.89 & 38.31\\
-Balanced BST          & 4.49 & 4.33 & 4.49\\
+List BST              & 1982.23 & 22.85 & 18.65\\
+Non optimal BST       & 2666.67 & 21.88 & 19.43\\
+Balanced BST          & 20.51 & 20.34 & 19.48\\
 \bottomrule
 \end{tabular}
 \end{table}
