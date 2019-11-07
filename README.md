@@ -5,13 +5,11 @@ Genetic algorithms (GA) are based on natural selection mechanisms together with 
 Our work is kind of an experiment, checking for what cases optimization binary trees by genetic and evolutionary operators makes sense.
 
 ### Binary tree optimization using evolutionary operators
-> The research on binary trees and searching information to try answer the question on what is the best binary search tree. In other words, the tree where the _search cost_ is minimal.
-
-The research on binary trees and searching information to try answer the question on what is the best binary search tree. In other words, the tree where the search cost is minimal. In this case, the search cost refers to the number of needed comparisons, to find a certain element.
+The research on binary trees and searching information to try answer the question on what is the best binary search tree. In other words, the tree where the _search cost_ is minimal.
+In this case, the search cost refers to the number of needed comparisons, to find a certain element.
 
 ### Monte Carlo Tree Search
-> Monte Carlo tree search (mcts) is a heuristic search algorithm for some kinds of decision processes, most notably those employed in game play.
-
+Monte Carlo tree search (mcts) is a heuristic search algorithm for some kinds of decision processes, most notably those employed in game play.
 This is a continuation of _Binary tree optimization using evolutionary operators_ research,
 but instead of (1+1) selection algorithm, we tried to apply _mcts (Monte Carlo Tree Search)_ algorithms.
 
